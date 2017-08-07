@@ -207,6 +207,8 @@ def compile_integral(integral_data, form_data, prefix, parameters,
     expressions = impero_utils.preprocess_gem(expressions, **options)
     assignments = list(zip(return_variables, expressions))
 
+    builder.register_tabulations(expressions)
+
     # Look for cell orientations in the IR
     if builder.needs_cell_orientations(expressions):
         builder.require_cell_orientations()

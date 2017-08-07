@@ -25,7 +25,7 @@ ExpressionKernel = namedtuple('ExpressionKernel', ['ast', 'oriented', 'coefficie
 
 class Kernel(object):
     __slots__ = ("ast", "integral_type", "oriented", "subdomain_id",
-                 "domain_number",
+                 "domain_number", "tabulations",
                  "coefficient_numbers", "__weakref__")
     """A compiled Kernel object.
 
@@ -222,6 +222,14 @@ class KernelBuilder(KernelBuilderBase):
         """Set that the kernel requires cell orientations."""
         self.kernel.oriented = True
 
+    def register_tabulations(self, expressions):
+        tabulations = {}
+        for node in traversal(expressions):
+            if isinstance(node, gem.Variable) and node.name.startswith("rt_"):
+                tabulations[node.name] = node.shape
+        self.tabulations = tuple(sorted(tabulations.items()))
+        self.kernel.tabulations = tuple(sorted(tabulations))
+
     def construct_kernel(self, name, body):
         """Construct a fully built :class:`Kernel`.
 
@@ -244,6 +252,9 @@ class KernelBuilder(KernelBuilderBase):
             args.append(coffee.Decl("unsigned int",
                                     coffee.Symbol("facet", rank=(2,)),
                                     qualifiers=["const"]))
+
+        for name_, shape in self.tabulations:
+            args.append(coffee.Decl(SCALAR_TYPE, coffee.Symbol(name_, rank=shape), qualifiers=["const"]))
 
         self.kernel.ast = KernelBuilderBase.construct_kernel(self, name, args, body)
         return self.kernel
