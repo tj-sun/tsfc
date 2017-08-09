@@ -26,7 +26,7 @@ ExpressionKernel = namedtuple('ExpressionKernel', ['ast', 'oriented', 'coefficie
 class Kernel(object):
     __slots__ = ("ast", "integral_type", "oriented", "subdomain_id",
                  "domain_number", "tabulations",
-                 "coefficient_numbers", "__weakref__")
+                 "coefficient_numbers", "__weakref__", "quad")
     """A compiled Kernel object.
 
     :kwarg ast: The COFFEE ast for the kernel.
@@ -38,9 +38,11 @@ class Kernel(object):
         original_form.ufl_domains() to get the correct domain).
     :kwarg coefficient_numbers: A list of which coefficients from the
         form the kernel needs.
+    :kwarg quadrule: The finat quadrature rule used to generate this kernel
     """
+
     def __init__(self, ast=None, integral_type=None, oriented=False,
-                 subdomain_id=None, domain_number=None,
+                 subdomain_id=None, domain_number=None, quadrule=None,
                  coefficient_numbers=()):
         # Defaults
         self.ast = ast
@@ -49,6 +51,7 @@ class Kernel(object):
         self.domain_number = domain_number
         self.subdomain_id = subdomain_id
         self.coefficient_numbers = coefficient_numbers
+        self.quad = quadrule
         super(Kernel, self).__init__()
 
 
@@ -230,7 +233,7 @@ class KernelBuilder(KernelBuilderBase):
         self.tabulations = tuple(sorted(tabulations.items()))
         self.kernel.tabulations = tuple(sorted(tabulations))
 
-    def construct_kernel(self, name, body):
+    def construct_kernel(self, name, body, quadrule):
         """Construct a fully built :class:`Kernel`.
 
         This function contains the logic for building the argument
@@ -254,9 +257,12 @@ class KernelBuilder(KernelBuilderBase):
                                     qualifiers=["const"]))
 
         for name_, shape in self.tabulations:
-            args.append(coffee.Decl(SCALAR_TYPE, coffee.Symbol(name_, rank=shape), qualifiers=["const"]))
+            args.append(coffee.Decl(SCALAR_TYPE, coffee.Symbol(
+                name_, rank=shape), qualifiers=["const"]))
 
         self.kernel.ast = KernelBuilderBase.construct_kernel(self, name, args, body)
+
+        self.kernel.quad = quadrule
         return self.kernel
 
     def construct_empty_kernel(self, name):
@@ -284,8 +290,10 @@ def prepare_coefficient(coefficient, name, interior_facet=False):
 
     if coefficient.ufl_element().family() == 'Real':
         # Constant
-        funarg = coffee.Decl(SCALAR_TYPE, coffee.Symbol(name),
-                             pointers=[("restrict",)],
+        # funarg = coffee.Decl(SCALAR_TYPE, coffee.Symbol(name),
+        # THIS WORKS ONLY FOR RANK-0 CONSTANTS IE SCALARS...
+        funarg = coffee.Decl(SCALAR_TYPE, coffee.Symbol(name, rank=(1,)),
+                             # pointers=[("restrict",)],
                              qualifiers=["const"])
 
         expression = gem.reshape(gem.Variable(name, (None,)),
@@ -304,8 +312,7 @@ def prepare_coefficient(coefficient, name, interior_facet=False):
     scalar_size = numpy.prod(scalar_shape, dtype=int)
     tensor_size = numpy.prod(tensor_shape, dtype=int)
 
-    funarg = coffee.Decl(SCALAR_TYPE, coffee.Symbol(name),
-                         pointers=[("const", "restrict"), ("restrict",)],
+    funarg = coffee.Decl(SCALAR_TYPE, coffee.Symbol(name, rank=(scalar_size, tensor_size)),
                          qualifiers=["const"])
 
     if not interior_facet:
