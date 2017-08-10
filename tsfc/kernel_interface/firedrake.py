@@ -312,8 +312,10 @@ def prepare_coefficient(coefficient, name, interior_facet=False):
     scalar_size = numpy.prod(scalar_shape, dtype=int)
     tensor_size = numpy.prod(tensor_shape, dtype=int)
 
-    funarg = coffee.Decl(SCALAR_TYPE, coffee.Symbol(name, rank=(scalar_size, tensor_size)),
-                         qualifiers=["const"])
+    if not interior_facet:
+        funarg = coffee.Decl(SCALAR_TYPE, coffee.Symbol(name, rank=(scalar_size, tensor_size)), qualifiers=["const"])
+    else:
+        funarg = coffee.Decl(SCALAR_TYPE, coffee.Symbol(name, rank=(2*scalar_size, tensor_size)), qualifiers=["const"])
 
     if not interior_facet:
         expression = gem.reshape(
