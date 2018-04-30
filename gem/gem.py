@@ -507,16 +507,16 @@ class Indexed(Scalar):
 
 
 class FlexiblyIndexed(Scalar):
-    """Flexible indexing of :py:class:`Variable`s to implement views and
+    """Flexible indexing of :py:class:`Node`s to implement views and
     reshapes (splitting dimensions only)."""
 
     __slots__ = ('children', 'dim2idxs')
     __back__ = ('dim2idxs',)
 
-    def __init__(self, variable, dim2idxs):
+    def __init__(self, expression, dim2idxs):
         """Construct a flexibly indexed node.
 
-        :arg variable: a :py:class:`Variable`
+        :arg expression: a :py:class:`Node` with shape
         :arg dim2idxs: describes the mapping of indices
 
         For example, if ``variable`` is rank two, and ``dim2idxs`` is
@@ -528,12 +528,11 @@ class FlexiblyIndexed(Scalar):
             variable[1 + i*12 + j*4 + k][0]
 
         """
-        assert isinstance(variable, Variable)
-        assert len(variable.shape) == len(dim2idxs)
+        assert len(expression.shape) == len(dim2idxs)
 
         dim2idxs_ = []
         free_indices = []
-        for dim, (offset, idxs) in zip(variable.shape, dim2idxs):
+        for dim, (offset, idxs) in zip(expression.shape, dim2idxs):
             offset_ = offset
             idxs_ = []
             last = 0
@@ -554,7 +553,7 @@ class FlexiblyIndexed(Scalar):
 
             dim2idxs_.append((offset_, tuple(idxs_)))
 
-        self.children = (variable,)
+        self.children = (expression,)
         self.dim2idxs = tuple(dim2idxs_)
         self.free_indices = unique(free_indices)
 

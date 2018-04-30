@@ -128,19 +128,25 @@ def replace_indices_indexed(node, self, subst):
 @replace_indices.register(FlexiblyIndexed)
 def replace_indices_flexiblyindexed(node, self, subst):
     child, = node.children
-    assert isinstance(child, Terminal)
-    assert not child.free_indices
-
     substitute = dict(subst)
     dim2idxs = tuple(
         (offset, tuple((substitute.get(i, i), s) for i, s in idxs))
         for offset, idxs in node.dim2idxs
     )
-
-    if dim2idxs == node.dim2idxs:
-        return node
+    if isinstance(child, Terminal):
+        assert not child.free_indices
+        if dim2idxs == node.dim2idxs:
+            return node
+        else:
+            return FlexiblyIndexed(child, dim2idxs)
     else:
-        return FlexiblyIndexed(child, dim2idxs)
+        # Must create this, because indexing can't be pushed inside.
+        assert isinstance(child, ComponentTensor)
+        new_child = self(child, subst)
+        if new_child == child and dim2idxs == node.dim2idxs:
+            return node
+        else:
+            return FlexiblyIndexed(new_child, dim2idxs)
 
 
 def filtered_replace_indices(node, self, subst):
