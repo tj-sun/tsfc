@@ -78,6 +78,32 @@ class Accumulate(Terminal):
         return free_indices(self.indexsum.children[0])
 
 
+class Declare(Terminal):
+    """Decalre a :class:`gem.ComponentTensor`."""
+
+    __slots__ = ('componenttensor',)
+    __front__ = ('componenttensor',)
+
+    def __init__(self, componenttensor):
+        self.componenttensor = componenttensor
+
+    def loop_shape(self, free_indices):
+        return free_indices(self.componenttensor)
+
+
+class Assign(Terminal):
+    """Assign terms to a :class:`gem.ComponentTensor`."""
+
+    __slots__ = ('componenttensor',)
+    __front__ = ('componenttensor',)
+
+    def __init__(self, componenttensor):
+        self.componenttensor = componenttensor
+
+    def loop_shape(self, free_indices):
+        return free_indices(self.componenttensor.children[0])
+
+
 class Noop(Terminal):
     """No-op terminal. Does not generate code, but wraps a GEM
     expression to have a loop shape, thus affects loop fusion."""

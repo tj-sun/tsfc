@@ -147,6 +147,8 @@ def collect_temporaries(tree):
         # (numbering).  We chose Accumulate here.
         if isinstance(node, imp.Accumulate):
             result.append(node.indexsum)
+        elif isinstance(node, imp.Assign):
+            result.append(node.componenttensor)
         elif isinstance(node, imp.Evaluate):
             result.append(node.expression)
     return result
@@ -261,6 +263,8 @@ def place_declarations(tree, temporaries, get_indices):
                 e = node.expression
             elif isinstance(node, imp.Initialise):
                 e = node.indexsum
+            elif isinstance(node, imp.Declare):
+                e = node.componenttensor
             else:
                 continue
 
@@ -304,6 +308,10 @@ def temp_refcount(temporaries, op):
         counter[op.indexsum] += 1
     elif isinstance(op, imp.Accumulate):
         recurse_top(op.indexsum)
+    elif isinstance(op, imp.Declare):
+        counter[op.componenttensor] += 1
+    elif isinstance(op, imp.Assign):
+        recurse_top(op.componenttensor)
     elif isinstance(op, imp.Evaluate):
         recurse_top(op.expression)
     elif isinstance(op, imp.Return):

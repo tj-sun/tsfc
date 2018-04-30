@@ -118,6 +118,9 @@ def handle(ops, push, decref, node):
     elif isinstance(node, (gem.Indexed, gem.FlexiblyIndexed)):
         # Indexing always inlined
         decref(node.children[0])
+    elif isinstance(node, gem.ComponentTensor):
+        ops.append(impero.Noop(node))
+        push(impero.Assign(node))
     elif isinstance(node, gem.IndexSum):
         ops.append(impero.Noop(node))
         push(impero.Accumulate(node))
@@ -125,6 +128,12 @@ def handle(ops, push, decref, node):
         ops.append(impero.Evaluate(node))
         for child in node.children:
             decref(child)
+    elif isinstance(node, impero.Declare):
+        ops.append(node)
+    elif isinstance(node, impero.Assign):
+        ops.append(node)
+        push(impero.Declare(node.componenttensor))
+        decref(node.componenttensor.children[0])
     elif isinstance(node, impero.Initialise):
         ops.append(node)
     elif isinstance(node, impero.Accumulate):

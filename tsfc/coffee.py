@@ -137,6 +137,23 @@ def statement_initialise(leaf, parameters):
         return coffee.Assign(_ref_symbol(leaf.indexsum, parameters), 0.0)
 
 
+@statement.register(imp.Declare)
+def statement_declare(leaf, parameters):
+    if parameters.declare[leaf]:
+        return coffee.Decl(SCALAR_TYPE, _decl_symbol(leaf.componenttensor, parameters))
+    else:
+        return _ref_symbol(leaf.componenttensor, parameters)
+
+
+@statement.register(imp.Assign)
+def statement_assign(leaf, parameters):
+    lvalue = expression(gem.Indexed(leaf.componenttensor,
+                                    leaf.componenttensor.multiindex),
+                        parameters)
+    rvalue = expression(leaf.componenttensor.children[0], parameters)
+    return coffee.Assign(lvalue, rvalue)
+
+
 @statement.register(imp.Accumulate)
 def statement_accumulate(leaf, parameters):
     pragma = _root_pragma(leaf.indexsum, parameters)
