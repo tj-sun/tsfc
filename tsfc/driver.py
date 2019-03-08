@@ -105,7 +105,7 @@ def compile_integral(integral_data, form_data, prefix, parameters, interface):
     integration_dim, entity_ids = lower_integral_type(fiat_cell, integral_type)
 
     quadrature_indices = []
-    
+
     # Dict mapping domains to index in original_form.ufl_domains()
     domain_numbering = form_data.original_form.domain_numbering()
     builder = interface(integral_type, integral_data.subdomain_id,
@@ -212,7 +212,7 @@ def compile_integral(integral_data, form_data, prefix, parameters, interface):
 
     # Register tabulations for runtime tabulated elements (used by Themis)
     builder.register_tabulations(expressions)
-    
+
     # Look for cell orientations in the IR
     if builder.needs_cell_orientations(expressions):
         builder.require_cell_orientations()
