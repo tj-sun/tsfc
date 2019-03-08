@@ -273,7 +273,7 @@ class KernelBuilder(KernelBuilderBase):
         """Set that the kernel requires cell sizes."""
         self.kernel.needs_cell_sizes = True
 
-    def construct_kernel(self, name, body):
+    def construct_kernel(self, name, body, quadrature_rule):
         """Construct a fully built :class:`Kernel`.
 
         This function contains the logic for building the argument
@@ -281,6 +281,7 @@ class KernelBuilder(KernelBuilderBase):
 
         :arg name: function name
         :arg body: function body (:class:`coffee.Block` node)
+        :arg quadrature rule: quadrature rule (not used, stubbed out for Themis integration)
         :returns: :class:`Kernel` object
         """
         args = [self.local_tensor, self.coordinates_arg]
