@@ -112,7 +112,8 @@ class KernelBuilderBase(_KernelBuilderBase):
         """Create a FInAT element (suitable for tabulating with) given
         a UFL element."""
         return create_element(element, **kwargs)
-    
+
+
 class ExpressionKernelBuilder(KernelBuilderBase):
     """Builds expression kernels for UFL interpolation in Themis."""
 
@@ -122,12 +123,12 @@ class ExpressionKernelBuilder(KernelBuilderBase):
         self.cell_sizes = False
 
     def register_tabulations(self, expressions):
-        tabulations = {}     
+        tabulations = {}
         for node in traversal(expressions):
             if isinstance(node, gem.Variable) and node.name.startswith("rt_"):
                 tabulations[node.name] = node.shape
         self.tabulations = tuple(sorted(tabulations.items()))
-        
+
     def set_coefficients(self, coefficients):
         """Prepare the coefficients of the expression.
 
@@ -264,7 +265,7 @@ class KernelBuilder(KernelBuilderBase):
                 tabulations[node.name] = node.shape
         self.tabulations = tuple(sorted(tabulations.items()))
         self.kernel.tabulations = tuple(sorted(tabulations.items()))
-        
+
     def require_cell_orientations(self):
         """Set that the kernel requires cell orientations."""
         self.kernel.oriented = True
