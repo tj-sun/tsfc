@@ -15,7 +15,7 @@ from tsfc.kernel_interface.common import KernelBuilderBase as _KernelBuilderBase
 
 
 # Expression kernel description type
-ExpressionKernel = namedtuple('ExpressionKernel', ['ast', 'oriented', 'coefficients'])
+ExpressionKernel = namedtuple('ExpressionKernel', ['ast', 'oriented', 'needs_cell_sizes', 'coefficients', 'tabulations'])
 
 
 class Kernel(object):
@@ -112,15 +112,22 @@ class KernelBuilderBase(_KernelBuilderBase):
         """Create a FInAT element (suitable for tabulating with) given
         a UFL element."""
         return create_element(element, **kwargs)
-
-
+    
 class ExpressionKernelBuilder(KernelBuilderBase):
-    """Builds expression kernels for UFL interpolation in Firedrake."""
+    """Builds expression kernels for UFL interpolation in Themis."""
 
     def __init__(self, scalar_type):
         super(ExpressionKernelBuilder, self).__init__(scalar_type)
         self.oriented = False
+        self.cell_sizes = False
 
+    def register_tabulations(self, expressions):
+        tabulations = {}     
+        for node in traversal(expressions):
+            if isinstance(node, gem.Variable) and node.name.startswith("rt_"):
+                tabulations[node.name] = node.shape
+        self.tabulations = tuple(sorted(tabulations.items()))
+        
     def set_coefficients(self, coefficients):
         """Prepare the coefficients of the expression.
 
@@ -145,6 +152,9 @@ class ExpressionKernelBuilder(KernelBuilderBase):
         """Set that the kernel requires cell orientations."""
         self.oriented = True
 
+    def require_cell_sizes(self):
+        self.cell_sizes = True
+
     def construct_kernel(self, return_arg, body):
         """Constructs an :class:`ExpressionKernel`.
 
@@ -155,10 +165,17 @@ class ExpressionKernelBuilder(KernelBuilderBase):
         args = [return_arg]
         if self.oriented:
             args.append(cell_orientations_coffee_arg)
+        if self.cell_sizes:
+            args.append(self.cell_sizes_arg)
         args.extend(self.kernel_args)
 
+        for name_, shape in self.tabulations:
+            args.append(coffee.Decl(self.scalar_type, coffee.Symbol(
+                name_, rank=shape), qualifiers=["const"]))
+# POSSIBLY REGISTER A QUAD RULE HERE?
+
         kernel_code = super(ExpressionKernelBuilder, self).construct_kernel("expression_kernel", args, body)
-        return ExpressionKernel(kernel_code, self.oriented, self.cell_sizes, self.coefficients)
+        return ExpressionKernel(kernel_code, self.oriented, self.cell_sizes, self.coefficients, self.tabulations)
 
 
 class KernelBuilder(KernelBuilderBase):
@@ -240,6 +257,14 @@ class KernelBuilder(KernelBuilderBase):
                 self._coefficient(coefficient, "w_%d" % i))
         self.kernel.coefficient_numbers = tuple(coefficient_numbers)
 
+    def register_tabulations(self, expressions):
+        tabulations = {}
+        for node in traversal(expressions):
+            if isinstance(node, gem.Variable) and node.name.startswith("rt_"):
+                tabulations[node.name] = node.shape
+        self.tabulations = tuple(sorted(tabulations.items()))
+        self.kernel.tabulations = tuple(sorted(tabulations.items()))
+        
     def require_cell_orientations(self):
         """Set that the kernel requires cell orientations."""
         self.kernel.oriented = True
@@ -285,14 +310,6 @@ class KernelBuilder(KernelBuilderBase):
         :returns: None
         """
         return None
-
-    def register_tabulations(self, expressions):
-        tabulations = {}
-        for node in traversal(expressions):
-            if isinstance(node, gem.Variable) and node.name.startswith("rt_"):
-                tabulations[node.name] = node.shape
-        self.tabulations = tuple(sorted(tabulations.items()))
-        self.kernel.tabulations = tuple(sorted(tabulations.items()))
 
 
 def prepare_coefficient(coefficient, name, scalar_type, interior_facet=False):

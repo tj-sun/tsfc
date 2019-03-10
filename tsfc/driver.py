@@ -258,7 +258,7 @@ def compile_integral(integral_data, form_data, prefix, parameters, interface):
     return builder.construct_kernel(kernel_name, body, quad_rule)
 
 
-def compile_expression_at_points(expression, points, coordinates, parameters=None):
+def compile_expression_at_points(expression, points, coordinates, parameters=None, interface=None):
     """Compiles a UFL expression to be evaluated at compile-time known
     reference points.  Useful for interpolating UFL expressions onto
     function spaces with only point evaluation nodes.
@@ -267,6 +267,7 @@ def compile_expression_at_points(expression, points, coordinates, parameters=Non
     :arg points: reference coordinates of the evaluation points
     :arg coordinates: the coordinate function
     :arg parameters: parameters object
+    :arg interface: backend module for the kernel interface
     """
     import coffee.base as ast
 
@@ -289,8 +290,11 @@ def compile_expression_at_points(expression, points, coordinates, parameters=Non
                                                  complex_mode=complex_mode)
 
     # Initialise kernel builder
-    builder = firedrake_interface.ExpressionKernelBuilder(parameters["scalar_type"])
-
+    if interface is None:
+        builder = firedrake_interface.ExpressionKernelBuilder(parameters["scalar_type"])
+    else:
+        builder = interface.ExpressionKernelBuilder(parameters["scalar_type"])
+        
     # Replace coordinates (if any)
     domain = expression.ufl_domain()
     if domain:
@@ -321,17 +325,22 @@ def compile_expression_at_points(expression, points, coordinates, parameters=Non
     if value_shape:
         ir = gem.Indexed(ir, tensor_indices)
 
+    # Register tabulations for runtime tabulated elements (used by Themis)
+    builder.register_tabulations([ir])
+    
     # Build kernel body
     return_shape = (len(points),) + value_shape
     return_indices = point_set.indices + tensor_indices
     return_var = gem.Variable('A', return_shape)
     return_arg = ast.Decl(parameters["scalar_type"], ast.Symbol('A', rank=return_shape))
     return_expr = gem.Indexed(return_var, return_indices)
-    ir, = impero_utils.preprocess_gem([ir])
+    ir, = impero_utils.preprocess_gem([ir])    
     impero_c = impero_utils.compile_gem([(return_expr, ir)], return_indices)
     point_index, = point_set.indices
     body = generate_coffee(impero_c, {point_index: 'p'}, parameters["precision"], parameters["scalar_type"])
 
+
+    
     # Handle cell orientations
     if builder.needs_cell_orientations([ir]):
         builder.require_cell_orientations()
